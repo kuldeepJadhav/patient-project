@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # MySQL Database - Start First
+  db:
+    image: mysql:8.0
+    container_name: db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: healthdb
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -proot || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 2
+      start_period: 30s
+    networks:
+      - healthdb-network
+
+  # Patient Backend Service - Start after MySQL is ready
+  patient-backend-service:
+    build: ./patient-backend-service
+    container_name: patient-backend-service
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      JWT_SECRET_KEY: iXew3rva2D5YlryDewkVWpmCZKBf2sgJgfzHIr2bGtk
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/healthdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9092/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - healthdb-network
+    restart: unless-stopped
+
+
+  # Auth Service - Start after Patient Backend Service is ready
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    depends_on:
+      patient-backend-service:
+        condition: service_healthy
+    ports:
+      - "9094:9094"
+    environment:
+      JWT_SECRET_KEY: iXew3rva2D5YlryDewkVWpmCZKBf2sgJgfzHIr2bGtk
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/healthdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9094/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - healthdb-network
+    restart: unless-stopped
+#
+#
+#
+#  # Gateway Service - Start last after all other services are ready
+  gateway-service:
+    build: ./gateway-service
+    container_name: gateway-service
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      JWT_SECRET_KEY: iXew3rva2D5YlryDewkVWpmCZKBf2sgJgfzHIr2bGtk
+      AUTH_URL: http://auth-service:9094
+      BACKEND_URL: http://patient-backend-service:9092
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - healthdb-network
+    restart: unless-stopped
+
+
+networks:
+  healthdb-network:
+    driver: bridge 

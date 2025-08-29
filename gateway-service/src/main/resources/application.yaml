@@ -1,0 +1,32 @@
+server:
+  port: 8081
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: gateway-service
+
+# Actuator Configuration
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+
+auth-service:
+  url: ${AUTH_URL:http://localhost:9094}
+patient-backend-service:
+  url: ${BACKEND_URL:http://localhost:9092}
+
+# Logging Configuration
+logging:
+  level:
+    org.springframework: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive: WARN
+    reactor.netty: WARN
+    com.hospitalmanagement: DEBUG
