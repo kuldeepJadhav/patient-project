@@ -38,9 +38,9 @@ public class PatientController {
         return ResponseEntity.ok(patientService.getPatientsForCohort(filter));
     }
 
-    @GetMapping
+    @GetMapping("/cohort/{cohortId}")
     @PreAuthorize("hasAnyRole('ROLE_MANAGER')")
-    public ResponseEntity<Page<PatientDto>> getPatients(Long cohortId) {
+    public ResponseEntity<Page<PatientDto>> getPatientsForCohortId(@PathVariable("cohortId") Long cohortId) {
         return ResponseEntity.ok(patientService.getPatientsForCohortId(cohortId));
     }
 
